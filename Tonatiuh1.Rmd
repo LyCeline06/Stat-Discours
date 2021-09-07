@@ -1,0 +1,245 @@
+---
+title: "Fondements statistiques - Exercice 1"
+author: "Céline LY and Hugo LAULLIER"
+date: "20 Décembre 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chargement des librairies et des données
+```{r, echo=FALSE}
+if(!require("FactoMineR")){install.packages("FactoMineR", dependencies = TRUE)}
+if(!require("factoextra")){install.packages("factoextra", dependencies = TRUE)}
+if(!require("corrplot")){install.packages("corrplot", dependencies = TRUE)}
+if(!require("cluster")){install.packages("cluster", dependencies = TRUE)}
+if(!require("klaR")){install.packages("klaR", dependencies = TRUE)}
+
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+library(cluster)
+library(klaR)
+
+alim <- read.csv("alim.csv", row.names=1, sep=",")
+colnames(alim)[5] <- "fruits_de_mer"
+colnames(alim)[6] <- "legume_vert"
+colnames(alim)[7] <- "legume_racine"
+colnames(alim)[8] <- "autre_legume"
+colnames(alim)[9] <- "feculent"
+colnames(alim)[10] <- "crudites"
+colnames(alim)[11] <- "pâtisseries"
+colnames(alim)[12] <- "encas_sucre"
+colnames(alim)[13] <- "encas_sale"
+colnames(alim)[14] <- "soda"
+colnames(alim)[15] <- "alcool"
+colnames(alim)[16] <- "taux_fer"
+colnames(alim)[17] <- "taux_vitamines"
+colnames(alim)[18] <- "cholesterol"
+alim[19:27] <- NULL
+```
+
+## ACP
+
+Afin de mettre en valeur d'éventuelles similitudes entre individus, et entre variables, nous allons réaliser une ACP. Nous préférons une ACP à une AFC, car les variables sont quantitatives.
+
+```{r }
+alim.acp <- PCA(alim, scale.unit=TRUE, ncp=5, quali.sup = c(16:18),graph=FALSE)
+```
+
+### Choix du nombre d'axes factoriel
+
+```{r}
+fviz_eig(alim.acp, addlabels = TRUE, choice = "variance" )
+```
+
+En appliquant le critère du coude, nous choisissons les deux premiers axes factoriels. Ils ne couvriront en effet que 35.3% de l'information, mais il faut prendre beaucoup plus de dimensions pour avoir une augmentation significative de la couverture d'information. Il est donc pertinent de ne choisir que les deux permières, mais il faut rester conscient de l'importante perte d'informations.
+
+Pour se donner une idée, on peut voir, à l'aide de cette matrice, la contribution des aliments aux différents axes factoriels.
+
+```{r,fig.align="center"}
+corrplot(alim.acp$var$cor)
+```
+
+On voit clairement que les aliments d'origine végétale (les légumes) contribuent très fortement au premier axe, et les aliments d'origine animale (poisson, fruits de mer, poulet...) contribuent très fortement au second.
+
+### Ressemblances/oppositions entre les individus
+
+Afin de mettre en valeur les ressemblances, nous allons observer la projection des individus sur le plan formé par les deux premiers axes vectoriels.
+
+```{r,fig.align="center"}
+fviz_pca_ind(alim.acp)
+```
+
+Les points ne sont pas concentrées, mais au contraire dispersés. Cela signifie qu'il existe bien des oppositions entre les individus. On peut de plus discerner à l'oeil nu quelques semblants de clusters : un en bas à droite, un à gauche, et un en haut à droite. Cela signifie qu'il est possible de réaliser des groupes d'indivus semblables. Ainsi, il existe bien des ressemblances et des oppositions entre les individus. Par exemple, les individus 64 et 66 se ressemblent, mais les individus 98 et 33 s'opposent. Attention, comme dit précédemment, il faut garder en tête que notre ACP nous a conduit à une perte non négligeable d'informations. Nous pourrons ainsi affirmer ces ressemblances/oppositions uniquement sur les 35.3% de l'information que nous possédons, mais les 64.7% peuvent alterner ces ressemblances/oppositions.
+
+### Etablissement d'une typologie 
+
+A présent, on ne va plus s'intéresser aux individus, mais aux variables. Afin de mieux comprendre le sens des variables, nous allons les catégoriser. On distingue deux types de variables : 
+
+- 15 variables quantitatives représentant, par catégorie d’aliment, la masse (en kg) consommée en moyenne par mois : poulet, poisson, soda, féculent...
+
+- 3 variables qualitatives ordonnées taux fer, taux vitamines, cholesterol relatives à des données biologiques
+
+
+### Corrélation entre les aliments
+
+Nous allons maintenant s'intéresser aux aliments (définis dans la typologie), et plus spécifiquement d'éventuels liens de corrélation entre eux. Pour ce faire, nous allons construire une matrice de corrélation.
+
+```{r,fig.align="center"}
+corrplot( cor( alim[1:15] ) )
+```
+
+Nous pouvons constater que certains aliments sont corrélés entre eux, comme les fruits de mer et le poisson, ou encore tous les types de légumes entre eux. On peut facilement synthétisés ces variables fortement corrélées entre elles en une seule variable. Les fruits de mer et le poisson peuvent être synthétisés en aliments marins. Ou encore, les légumes verts, les légumes racines, les autres légumes et les crudités peuvent tout simplement être synthétisés en légumes.
+
+Nous pouvons aussi retrouver ces résultats sur la projection des variables sur les deux permiers axes factoriels.
+
+```{r,fig.align="center"}
+fviz_pca_var(alim.acp, col.var = "cos2", repel=TRUE)
+```
+
+Nous retrouvons en effet deux groupes de variables : les aliments marins et les légumes.
+
+### Synthèse des ressemblances et corrélations
+
+Afin de tout synthétiser sur un même schéma, on peut superposer la projection des individus et des variables dans le plan factoriel.
+
+```{r,fig.align="center"}
+fviz_pca_biplot(alim.acp,col.var = "contrib",col.ind = "contrib" )
+```
+
+Nous retrouvons tout ce qui a été dit précemment : les ressemblances/oppositions entre les individus et la corrélation entre plusieurs variables, permettant donc de synthétiser de nouvelles variables plus générales. Avec cette représentation, nous pouvons aussi comprendre ce qui contribuent à la ressemblance ou à l'opposition des individus. Par exemple, les repas 22 et 25 se rapprochent car ce sont deux repas marins, mais les repas 33 et 140 s'opposent, car l'un semble être un repas végétarien, alors que l'autre semble être un repas à base de viande.
+
+## CAH
+
+A présent, nous allons repérer les différents types de comportements alimenataires en identifiant des clusters.
+
+### Choix du nombre de clusters
+
+Nous pouvons essayer dans un premier temps d'afficher un dendrogramme faisant un regroupement hiéarchique en déterminant pour quel nombre de clusters le gain d'inertie est maximum.
+
+```{r}
+hcpc <- HCPC(alim.acp, graph = FALSE)
+fviz_dend(hcpc, 
+          palette = "jco",               
+          rect = TRUE, rect_fill = TRUE, 
+          rect_border = "jco"
+          )
+```
+
+Bien qu'il soit difficile à lire, nous observons que le nombre de clusters suggérés est 3. Nous allons vérifier que 3 clusters minimise bien un critère de FactoMineR.
+
+```{r}
+crit.tri= sort(hcpc$call$t$quot)
+coup = order(hcpc$call$t$quot)+2
+barplot(crit.tri, names.arg=coup, col="olivedrab4", border="white", ylab= "Critère FactoMineR", main="Qualité d'une partition selon le nombre de classes")
+```
+
+3 minimise bien ce critère, donc il est pertinent de distinguer 3 clusters.
+
+### Affichage des clusters identifiés
+
+Voici les clusters que nous pouvons identifiés dans le premier plan factoriel.
+
+```{r}
+plot(hcpc, choice = "map")
+```
+
+Nous pouvons nous apercevoir, comme suggéré précédemment, de la localisation des clusters : un en bas à droite, un à gauche, et un en haut à droite. Ils sont clairement distincts : le premier plan factoriel est donc suffisant pour les représenter.
+
+### Différents types de comportements alimentaires
+
+On peut interprêter ces 3 clusters de la manière suivante : il existe 3 types de comportement alimentaire. Nous allons donc déterminer ce qui les caractrisent.
+
+```{r}
+hcpc$desc.var$quanti
+```
+
+Les paragons (i.e. les éléments les plus proches du centre de gravité de chacune des classes) sont les premiers de chaque liste. Cela signifie que l'on peut caractériser les différents types de comportements alimentaires de la manière suivante :
+
+- comportement alimentaire 1 : plats composés de soda, féculent et viande
+- comportement alimentaire 2 : plats composés d'aliments marins et de légumes
+- comportement alimentaire 3 : plats composés de légumes.
+
+Nous pouvons donc résumer les différents types de comportement alimentaire en 3 plats : les plats avec viande, les plats avec poisson et les plats végétariens.
+
+
+## ADisc
+
+```{r, echo=FALSE}
+library(corrplot)
+library(DiscriMiner)
+```
+
+A présent, nous allons chercher à comprendre quels sont les aliments qui permettent de mieux représenter les différentes données biologiques.
+
+### Masse de chaque aliment en fonction du taux des différentes données biologiques
+
+Pour commencer, nous allons représenter la masse des aliments composant les plats en fonction du taux des données biologiques pour avoir une idée globale des variables discriminantes.
+
+#### En fonction du taux de cholestérol
+
+```{r, fig.align="center",fig.height =12}
+par(mfrow=c(5,3)) 
+for (i in 1:15) {
+boxplot(alim[,i]~alim$cholesterol, xlab = "", ylab=colnames(alim)[i])
+}
+```
+
+Nous pouvons remarquer à première vue que la masse de fruits de mer, de légumes, de crudités et des sodas permettent de déterminer le taux de choléstérol.
+
+#### En fonction du taux de fer
+
+```{r, fig.align="center",fig.height =12}
+par(mfrow=c(5,3)) 
+for (i in 1:15) {
+boxplot(alim[,i]~alim$`taux_fer`, xlab = "", ylab=colnames(alim)[i])
+}
+```
+
+Nous pouvons remarquer à première vue que la masse des fruits de mer, des légumes, des encas sucrés et des sodas permettent de déterminer le taux de fer.
+
+#### En fonction du taux de vitamines
+
+```{r, fig.align="center",fig.height =12}
+par(mfrow=c(5,3)) 
+for (i in 1:15) {
+boxplot(alim[,i]~alim$`taux_vitamines`, xlab = "", ylab=colnames(alim)[i])
+}
+```
+
+Nous pouvons remarquer à première vue que la masse du poulet, du boeuf, du poisson et des féculents permettent de déterminer le taux de vitamines.
+
+### Sélection des aliments dicriminants
+
+Afin de déterminer de façon plus précise quels sont les aliments qui permettent de caractériser au mieux le taux des données biologiques dans les plats, nous allons effectuer une sélection progressive en utilisant le lambda de Wilks.
+
+#### Pour le taux de cholestérol
+
+```{r}
+greedy.wilks(cholesterol~., data=alim[-c(16,17)], niveau = 0.1)
+```
+
+Les aliments permettant de caractériser au mieux le taux de cholestérol sont les légumes verts, les sodas, les pâtisserises, l’alcool, les féculents et les légumes racines.
+
+#### Pour le taux de fer
+
+```{r}
+greedy.wilks(taux_fer~., data=alim[-c(17,18)], niveau = 0.1)
+```
+
+Les aliments permettant de caractériser au mieux le taux de fer sont les légumes verts, les encas sucrés et le porc.
+
+#### Pour le taux de vitamines
+
+```{r}
+greedy.wilks(taux_vitamines~., data=alim[-c(16,18)], niveau = 0.1)
+```
+
+Les aliments permettant de caractériser au mieux le taux de vitamines sont les féculents et le poulet.
+
+Nous retrouvons dans les trois cas approximativement les mêmes aliments discriminants intuités par la représentation de la masse des aliments composant les plats en fonction du taux des données biologiques.
